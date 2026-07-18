@@ -93,31 +93,33 @@ export default function FlowerGardenSection() {
         background: '#0d0a14',
       }}
     >
-      {/* SVG rose — visible from intro through note, exits on scatter */}
-      <AnimatePresence>
-        {(phase === 'intro' || phase === 'bloom' || phase === 'note') && (
-          <motion.div
-            key="rose-svg"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{
-              opacity: 1,
-              scale: phase === 'note' ? 0.75 : 1,
-              y: phase === 'note' ? '-10%' : 0,
-            }}
-            exit={{ opacity: 0, scale: 1.8, transition: { duration: 1.8, ease: 'easeInOut' } }}
-            transition={{ duration: 1.5, ease: 'easeInOut' }}
-            style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <BloomingRoseSVG
-              blooming={phase === 'bloom'}
-              onBloomComplete={handleBloomDone}
-              bloomed={phase === 'note'}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Rose — ALWAYS visible, never disappears */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{
+          opacity: (phase === 'scatter' || phase === 'transform' || phase === 'garden') ? 0.3 : 1,
+          scale: phase === 'note' ? 0.7 : (phase === 'scatter' || phase === 'transform' || phase === 'garden') ? 0.45 : phase === 'intro' ? 0.9 : 1,
+          y: (phase === 'note' || phase === 'scatter' || phase === 'transform' || phase === 'garden') ? '-12%' : 0,
+        }}
+        transition={{ duration: 1.5, ease: 'easeInOut' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: phase === 'garden' ? 0 : 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        <BloomingRoseSVG
+          blooming={phase === 'bloom'}
+          onBloomComplete={handleBloomDone}
+          bloomed={phase !== 'intro' && phase !== 'bloom'}
+        />
+      </motion.div>
 
-      {/* 3D garden — only after note phase */}
+      {/* 3D garden — loads after note phase, rose stays visible on top */}
       {(phase === 'scatter' || phase === 'transform' || phase === 'garden') && (
         <div style={{ position: 'absolute', inset: 0 }}>
           <Suspense fallback={
