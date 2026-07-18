@@ -1,15 +1,18 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 
 interface Props {
   blooming: boolean;
   onBloomComplete: () => void;
+  bloomed?: boolean;
 }
 
-export default function BloomingRoseSVG({ blooming, onBloomComplete }: Props) {
+export default function BloomingRoseSVG({ blooming, onBloomComplete, bloomed }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const animated = useRef(false);
+  const [init, setInit] = useState(false);
 
   useEffect(() => {
     if (!blooming || animated.current || !svgRef.current) return;
@@ -19,32 +22,33 @@ export default function BloomingRoseSVG({ blooming, onBloomComplete }: Props) {
       const el = svg.getElementById(`a${i}`);
       if (el) (el as SVGAnimationElement).beginElement();
     }
+    setTimeout(() => setInit(true), 500);
     const t = setTimeout(onBloomComplete, 8000);
     return () => clearTimeout(t);
   }, [blooming, onBloomComplete]);
 
-  const triggerBloom = useCallback(() => {
-    if (animated.current || !svgRef.current) return;
-    animated.current = true;
-    const svg = svgRef.current;
-    for (let i = 0; i < 15; i++) {
-      const el = svg.getElementById(`a${i}`);
-      if (el) (el as SVGAnimationElement).beginElement();
-    }
-  }, []);
-
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <motion.div
+      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      animate={bloomed || init ? {
+        filter: [
+          'drop-shadow(0 0 30px rgba(232,160,191,0.3))',
+          'drop-shadow(0 0 50px rgba(232,160,191,0.5))',
+          'drop-shadow(0 0 30px rgba(232,160,191,0.3))',
+        ],
+      } : {}}
+      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+    >
       <svg
         ref={svgRef}
         viewBox="0 0 188 264"
         xmlns="http://www.w3.org/2000/svg"
-        onClick={(e) => { e.stopPropagation(); triggerBloom(); }}
         style={{
-          width: 'min(60vw, 340px)',
+          width: 'min(78vw, 420px)',
+          maxHeight: '85vh',
           height: 'auto',
-          cursor: blooming ? 'default' : 'pointer',
-          filter: 'drop-shadow(0 0 40px rgba(232,80,80,0.25))',
+          filter: 'drop-shadow(0 0 40px rgba(232,80,120,0.25))',
+          marginTop: bloomed ? '5vh' : 0,
         }}
       >
         <defs>
@@ -200,6 +204,6 @@ export default function BloomingRoseSVG({ blooming, onBloomComplete }: Props) {
             to="M39.237 122.683 C46.749 118.213 62.759 115.009 61.295 123.063 C61.295 123.063 66.241 120.779 68.9 120.401 C73.55 119.739 78.314 120.546 82.971 121.162 C91.45 122.284 99.617 125.191 108.071 126.486 C110.714 126.891 116.057 127.246 116.057 127.246 C116.057 127.246 120.185 127.658 122.142 128.767 C123.524 129.55 124.424 132.951 124.424 132.951 C124.424 132.951 121.753 137.349 119.86 139.035 C114.6 143.72 107.654 146.072 101.606 149.684 C99.31 151.055 97.21 152.793 94.761 153.867 C91.38 155.35 87.793 156.625 84.112 156.909 C81.055 157.145 77.91 156.69 74.985 155.769 C70.063 154.22 65.03 152.103 61.295 148.543 C58.95 146.308 58.664 142.444 56.351 140.176 C53.96 137.831 50.7 136.511 47.604 135.233 C42.743 133.227 32.392 131.049 32.392 131.049 C32.392 131.049 31.189 128.709 31.631 127.627 C32.774 124.828 36.639 124.229 39.237 122.683Z"/>
         </path>
       </svg>
-    </div>
+    </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LOVE_NOTES, GARDEN_MESSAGES } from './rose-garden-state';
@@ -93,24 +93,32 @@ export default function FlowerGardenSection() {
         background: '#0d0a14',
       }}
     >
-      {/* Intro + Bloom: show the SVG rose */}
+      {/* SVG rose — visible from intro through note, exits on scatter */}
       <AnimatePresence>
-        {(phase === 'intro' || phase === 'bloom') && (
+        {(phase === 'intro' || phase === 'bloom' || phase === 'note') && (
           <motion.div
             key="rose-svg"
             initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.5 }}
+            animate={{
+              opacity: 1,
+              scale: phase === 'note' ? 0.75 : 1,
+              y: phase === 'note' ? '-10%' : 0,
+            }}
+            exit={{ opacity: 0, scale: 1.8, transition: { duration: 1.8, ease: 'easeInOut' } }}
             transition={{ duration: 1.5, ease: 'easeInOut' }}
-            style={{ position: 'absolute', inset: 0, zIndex: 10 }}
+            style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <BloomingRoseSVG blooming={phase === 'bloom'} onBloomComplete={handleBloomDone} />
+            <BloomingRoseSVG
+              blooming={phase === 'bloom'}
+              onBloomComplete={handleBloomDone}
+              bloomed={phase === 'note'}
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Garden: 3D scene */}
-      {(phase === 'note' || phase === 'scatter' || phase === 'transform' || phase === 'garden') && (
+      {/* 3D garden — only after note phase */}
+      {(phase === 'scatter' || phase === 'transform' || phase === 'garden') && (
         <div style={{ position: 'absolute', inset: 0 }}>
           <Suspense fallback={
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
