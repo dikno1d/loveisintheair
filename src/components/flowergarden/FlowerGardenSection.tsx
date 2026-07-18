@@ -1,46 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LOVE_NOTES, GARDEN_MESSAGES } from './rose-garden-state';
+import { LOVE_NOTES } from './rose-garden-state';
 import BloomingRoseSVG from './BloomingRoseSVG';
 
-const RoseGardenExperience = dynamic(() => import('./RoseGardenExperience'), { ssr: false });
-
-type Phase = 'intro' | 'bloom' | 'note' | 'scatter' | 'transform' | 'garden';
+type Phase = 'intro' | 'bloom' | 'note';
 
 export default function FlowerGardenSection() {
   const [phase, setPhase] = useState<Phase>('intro');
   const [typedText, setTypedText] = useState('');
-  const [showNextBtn, setShowNextBtn] = useState(false);
-  const [gardenMsg, setGardenMsg] = useState<string | null>(null);
-  const [noteIdx, setNoteIdx] = useState(0);
-  const [sceneReady, setSceneReady] = useState(false);
 
-  const phaseRef = useRef<Phase>('intro');
-  const gardenMsgTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const setPhaseSafe = useCallback((p: Phase) => {
-    phaseRef.current = p;
-    setPhase(p);
-  }, []);
-
-  const handleBloomDone = useCallback(() => {
-    setPhaseSafe('note');
-  }, [setPhaseSafe]);
-  const handleScatterDone = useCallback(() => { setPhaseSafe('transform'); }, [setPhaseSafe]);
-  const handleGardenReady = useCallback(() => { setPhaseSafe('garden'); }, [setPhaseSafe]);
-  const handleGardenRoseClick = useCallback((msg: string) => {
-    setGardenMsg(msg);
-    if (gardenMsgTimeout.current) clearTimeout(gardenMsgTimeout.current);
-    gardenMsgTimeout.current = setTimeout(() => setGardenMsg(null), 3000);
-  }, []);
-
-  // Auto-bloom when section scrolls into view
   const sectionRef = useRef<HTMLElement>(null);
   const bloomTriggered = useRef(false);
+  const noteRef = useRef(0);
 
+  // Auto-bloom when section scrolls into view
   useEffect(() => {
     const el = sectionRef.current;
     if (!el || bloomTriggered.current) return;
@@ -49,7 +24,9 @@ export default function FlowerGardenSection() {
       ([entry]) => {
         if (entry.isIntersecting && !bloomTriggered.current) {
           bloomTriggered.current = true;
-          setTimeout(() => setPhaseSafe('bloom'), 800);
+          setTimeout(() => {
+            if (phase === 'intro') setPhase('bloom');
+          }, 800);
           observer.disconnect();
         }
       },
@@ -57,29 +34,25 @@ export default function FlowerGardenSection() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [setPhaseSafe]);
+  }, [phase]);
 
-  // Note phase typewriter
+  const handleBloomDone = () => {
+    setPhase('note');
+  };
+
+  // Typewriter effect
   useEffect(() => {
-    if (phase !== 'note') { setTypedText(''); setShowNextBtn(false); return; }
-    const note = LOVE_NOTES[noteIdx % LOVE_NOTES.length];
+    if (phase !== 'note') { setTypedText(''); return; }
+    const note = LOVE_NOTES[noteRef.current % LOVE_NOTES.length];
     let idx = 0;
     setTypedText('');
-    setShowNextBtn(false);
     const interval = setInterval(() => {
       idx++;
       setTypedText(note.slice(0, idx));
-      if (idx >= note.length) {
-        clearInterval(interval);
-        setTimeout(() => setShowNextBtn(true), 600);
-      }
+      if (idx >= note.length) clearInterval(interval);
     }, 55);
     return () => clearInterval(interval);
-  }, [phase, noteIdx]);
-
-  useEffect(() => {
-    return () => { if (gardenMsgTimeout.current) clearTimeout(gardenMsgTimeout.current); };
-  }, []);
+  }, [phase]);
 
   return (
     <section
@@ -93,53 +66,23 @@ export default function FlowerGardenSection() {
         background: '#0d0a14',
       }}
     >
-      {/* Rose — ALWAYS visible, never disappears */}
+      {/* Rose — always visible */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{
-          opacity: (phase === 'scatter' || phase === 'transform' || phase === 'garden') ? 0.3 : 1,
-          scale: phase === 'note' ? 0.7 : (phase === 'scatter' || phase === 'transform' || phase === 'garden') ? 0.45 : phase === 'intro' ? 0.9 : 1,
-          y: (phase === 'note' || phase === 'scatter' || phase === 'transform' || phase === 'garden') ? '-12%' : 0,
+          opacity: 1,
+          scale: phase === 'note' ? 0.7 : phase === 'intro' ? 0.9 : 1,
+          y: phase === 'note' ? '-12%' : 0,
         }}
         transition={{ duration: 1.5, ease: 'easeInOut' }}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: phase === 'garden' ? 0 : 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-        }}
+        style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}
       >
         <BloomingRoseSVG
           blooming={phase === 'bloom'}
           onBloomComplete={handleBloomDone}
-          bloomed={phase !== 'intro' && phase !== 'bloom'}
+          bloomed={phase === 'note'}
         />
       </motion.div>
-
-      {/* 3D garden — loads after note phase, rose stays visible on top */}
-      {(phase === 'scatter' || phase === 'transform' || phase === 'garden') && (
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <Suspense fallback={
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <p style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', letterSpacing: '4px', color: 'rgba(232,160,191,0.5)' }}>
-                Loading garden...
-              </p>
-            </div>
-          }>
-            <RoseGardenExperience
-              phase={phase}
-              onBloomDone={handleBloomDone}
-              onScatterDone={handleScatterDone}
-              onGardenReady={handleGardenReady}
-              onGardenRoseClick={handleGardenRoseClick}
-              onReady={() => setSceneReady(true)}
-            />
-          </Suspense>
-        </div>
-      )}
 
       {/* Love Note overlay */}
       <AnimatePresence>
@@ -157,42 +100,7 @@ export default function FlowerGardenSection() {
               <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 'clamp(1rem, 2.8vw, 1.25rem)', lineHeight: 1.7, color: '#fff8f0', minHeight: '60px' }}>
                 &ldquo;{typedText}<motion.span animate={{ opacity: [1, 0, 1] }} transition={{ duration: 0.8, repeat: Infinity }} style={{ color: '#e8a0bf' }}>|</motion.span>&rdquo;
               </p>
-              <AnimatePresence>
-                {showNextBtn && (
-                  <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    onClick={(e) => { e.stopPropagation(); setPhaseSafe('scatter'); setNoteIdx(n => n + 1); }}
-                    style={{ marginTop: '28px', background: 'linear-gradient(135deg, #e8a0bf, #d4a574)', color: '#0d0a14', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '12px 36px', borderRadius: '50px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(232,160,191,0.3)' }}
-                    whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
-                    Next
-                  </motion.button>
-                )}
-              </AnimatePresence>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Garden label */}
-      <AnimatePresence>
-        {phase === 'garden' && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            style={{ position: 'absolute', top: '24px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', zIndex: 20, pointerEvents: 'none' }}>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.65rem', letterSpacing: '5px', textTransform: 'uppercase', color: 'rgba(212,165,116,0.5)', textShadow: '0 0 15px rgba(0,0,0,0.8)' }}>
-              Tap any rose for a message
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Garden message */}
-      <AnimatePresence>
-        {gardenMsg && (
-          <motion.div key={gardenMsg} initial={{ opacity: 0, y: 20, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            style={{ position: 'absolute', top: '12%', left: '50%', transform: 'translateX(-50%)', zIndex: 30, background: 'rgba(13,10,20,0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(232,160,191,0.2)', borderRadius: '20px', padding: '16px 28px', boxShadow: '0 12px 40px rgba(0,0,0,0.4)', pointerEvents: 'none', maxWidth: '90%' }}>
-            <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 'clamp(0.85rem, 2.2vw, 1.05rem)', color: '#fff8f0', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
-              {gardenMsg}
-            </p>
           </motion.div>
         )}
       </AnimatePresence>
